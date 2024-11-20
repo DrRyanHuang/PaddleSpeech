@@ -1,13 +1,13 @@
 import inspect
-from typing import Optional, Sequence
+import math
+from typing import Optional
+from typing import Sequence
+
 import paddle
 import paddle.nn.functional as F
-import math
 
 
-def simple_repr(
-    obj, attrs: Optional[Sequence[str]] = None, overrides: dict = {}
-):
+def simple_repr(obj, attrs: Optional[Sequence[str]]=None, overrides: dict={}):
     """
     Return a simple representation string for `obj`.
     If `attrs` is not None, it should be a list of attributes to include.
@@ -45,8 +45,7 @@ def sinc(x: paddle.Tensor):
     return paddle.where(
         x == 0,
         paddle.to_tensor(1.0, dtype=x.dtype, place=x.place),
-        paddle.sin(x) / x,
-    )
+        paddle.sin(x) / x, )
 
 
 class ResampleFrac(paddle.nn.Layer):
@@ -54,9 +53,11 @@ class ResampleFrac(paddle.nn.Layer):
     Resampling from the sample rate `old_sr` to `new_sr`.
     """
 
-    def __init__(
-        self, old_sr: int, new_sr: int, zeros: int = 24, rolloff: float = 0.945
-    ):
+    def __init__(self,
+                 old_sr: int,
+                 new_sr: int,
+                 zeros: int=24,
+                 rolloff: float=0.945):
         """
         Args:
             old_sr (int): sample rate of the input signal x.
@@ -129,13 +130,12 @@ class ResampleFrac(paddle.nn.Layer):
         # There is probably a way to evaluate those filters more efficiently, but this is kept for
         # future work.
         idx = paddle.arange(
-            -self._width, self._width + self.old_sr, dtype="float32"
-        )
+            -self._width, self._width + self.old_sr, dtype="float32")
         for i in range(self.new_sr):
             t = (-i / self.new_sr + idx / self.old_sr) * sr
             t = paddle.clip(t, -self.zeros, self.zeros)
             t *= math.pi
-            window = paddle.cos(t / self.zeros / 2) ** 2
+            window = paddle.cos(t / self.zeros / 2)**2
             kernel = sinc(t) * window
             # Renormalize kernel to ensure a constant signal is preserved.
             kernel = kernel / kernel.sum()
@@ -144,16 +144,14 @@ class ResampleFrac(paddle.nn.Layer):
         _kernel = paddle.stack(kernels).reshape([self.new_sr, 1, -1])
         self.kernel = self.create_parameter(
             shape=_kernel.shape,
-            dtype=_kernel.dtype,
-        )
+            dtype=_kernel.dtype, )
         self.kernel.set_value(_kernel)
 
     def forward(
-        self,
-        x: paddle.Tensor,
-        output_length: Optional[int] = None,
-        full: bool = False,
-    ):
+            self,
+            x: paddle.Tensor,
+            output_length: Optional[int]=None,
+            full: bool=False, ):
         """
         Resample x.
         Args:
@@ -176,35 +174,29 @@ class ResampleFrac(paddle.nn.Layer):
             x.unsqueeze(1),
             [self._width, self._width + self.old_sr],
             mode="replicate",
-            data_format="NCL",
-        )
+            data_format="NCL", )
         ys = F.conv1d(x, self.kernel, stride=self.old_sr, data_format="NCL")
         y = ys.transpose([0, 2, 1]).reshape(list(shape[:-1]) + [-1])
 
         float_output_length = paddle.to_tensor(
-            self.new_sr * length / self.old_sr, dtype="float32"
-        )
+            self.new_sr * length / self.old_sr, dtype="float32")
         max_output_length = paddle.ceil(float_output_length).astype("int64")
         default_output_length = paddle.floor(float_output_length).astype(
-            "int64"
-        )
+            "int64")
 
         if output_length is None:
-            applied_output_length = (
-                max_output_length if full else default_output_length
-            )
+            applied_output_length = (max_output_length
+                                     if full else default_output_length)
         elif output_length < 0 or output_length > max_output_length:
             raise ValueError(
                 f"output_length must be between 0 and {max_output_length.numpy()}"
             )
         else:
             applied_output_length = paddle.to_tensor(
-                output_length, dtype="int64"
-            )
+                output_length, dtype="int64")
             if full:
                 raise ValueError(
-                    "You cannot pass both full=True and output_length"
-                )
+                    "You cannot pass both full=True and output_length")
         return y[..., :applied_output_length]
 
     def __repr__(self):
@@ -212,14 +204,13 @@ class ResampleFrac(paddle.nn.Layer):
 
 
 def resample_frac(
-    x: paddle.Tensor,
-    old_sr: int,
-    new_sr: int,
-    zeros: int = 24,
-    rolloff: float = 0.945,
-    output_length: Optional[int] = None,
-    full: bool = False,
-):
+        x: paddle.Tensor,
+        old_sr: int,
+        new_sr: int,
+        zeros: int=24,
+        rolloff: float=0.945,
+        output_length: Optional[int]=None,
+        full: bool=False, ):
     """
     Functional version of `ResampleFrac`, refer to its documentation for more information.
 
@@ -228,9 +219,7 @@ def resample_frac(
         resampling kernel will be recomputed everytime. For best performance, you should use
         and cache an instance of `ResampleFrac`.
     """
-    return ResampleFrac(old_sr, new_sr, zeros, rolloff)(
-        x, output_length, full
-    )
+    return ResampleFrac(old_sr, new_sr, zeros, rolloff)(x, output_length, full)
 
 
 if __name__ == "__main__":
