@@ -170,7 +170,7 @@ def seed(random_seed, set_cudnn=False):
         mode and off of benchmark mode. Defaults to False.
     """
 
-    paddle.manual_seed(random_seed)
+    paddle.seed(random_seed)
     np.random.seed(random_seed)
     random.seed(random_seed)
 
