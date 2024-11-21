@@ -14,8 +14,9 @@ import librosa
 import numpy as np
 import paddle
 import soundfile
-import util
-from resample import resample_frac
+
+from . import util
+from .resample import resample_frac
 
 # from .display import DisplayMixin
 # from .dsp import DSPMixin
