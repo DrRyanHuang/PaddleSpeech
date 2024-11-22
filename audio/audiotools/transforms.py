@@ -4,12 +4,12 @@ from inspect import signature
 from numpy.random import RandomState
 from flatten_dict import flatten, unflatten
 from typing import Callable, Dict, List, Union
+from contextlib import contextmanager
+import numpy as np
 
 from . import util
 
 from .audio_signal import AudioSignal
-
-from contextlib import contextmanager
 
 class AudioLoader:
     """Loads audio endlessly from a list of audio sources
@@ -572,8 +572,120 @@ class Choose(Compose):
         for i, t in enumerate(self.transforms):
             mask = kwargs[t.name]["mask"]
             if mask.item():
-                kwargs[t.name]["mask"] = tt(i == tfm_idx)
+                kwargs[t.name]["mask"] = paddle.to_tensor(i == tfm_idx)
             one_hot.append(kwargs[t.name]["mask"])
         kwargs["one_hot"] = one_hot
         return kwargs
 
+
+class Identity(BaseTransform):
+    """This transform just returns the original signal."""
+
+    pass
+
+
+class VolumeNorm(BaseTransform):
+    """Normalizes the volume of the excerpt to a specified decibel.
+
+    Uses :py:func:`audiotools.core.effects.EffectMixin.normalize`.
+
+    Parameters
+    ----------
+    db : tuple, optional
+        dB to normalize signal to, by default ("const", -24)
+    name : str, optional
+        Name of this transform, used to identify it in the dictionary
+        produced by ``self.instantiate``, by default None
+    prob : float, optional
+        Probability of applying this transform, by default 1.0
+    """
+
+    def __init__(
+        self,
+        db: tuple = ("const", -24),
+        name: str = None,
+        prob: float = 1.0,
+    ):
+        super().__init__(name=name, prob=prob)
+
+        self.db = db
+
+    def _instantiate(self, state: RandomState):
+        return {"db": util.sample_from_dist(self.db, state)}
+
+    def _transform(self, signal, db):
+        return signal.normalize(db)
+    
+
+class RescaleAudio(BaseTransform):
+    """Rescales the audio so it is in between ``-val`` and ``val``
+    only if the original audio exceeds those bounds. Useful if
+    transforms have caused the audio to clip.
+
+    Uses :py:func:`audiotools.core.effects.EffectMixin.ensure_max_of_audio`.
+
+    Parameters
+    ----------
+    val : float, optional
+        Max absolute value of signal, by default 1.0
+    name : str, optional
+        Name of this transform, used to identify it in the dictionary
+        produced by ``self.instantiate``, by default None
+    prob : float, optional
+        Probability of applying this transform, by default 1.0
+    """
+
+    def __init__(self, val: float = 1.0, name: str = None, prob: float = 1):
+        super().__init__(name=name, prob=prob)
+
+        self.val = val
+
+    def _transform(self, signal):
+        return signal.ensure_max_of_audio(self.val)
+    
+
+class SpectralTransform(BaseTransform):
+    """Spectral transforms require STFT data to exist, since manipulations
+    of the STFT require the spectrogram. This just calls ``stft`` before
+    the transform is called, and calls ``istft`` after the transform is
+    called so that the audio data is written to after the spectral
+    manipulation.
+    """
+
+    def transform(self, signal, **kwargs):
+        signal.stft()
+        super().transform(signal, **kwargs)
+        signal.istft()
+        return signal
+    
+
+class ShiftPhase(SpectralTransform):
+    """Shifts the phase of the audio.
+
+    Uses :py:func:`audiotools.core.dsp.DSPMixin.shift)phase`.
+
+    Parameters
+    ----------
+    shift : tuple, optional
+        How much to shift phase by, by default ("uniform", -np.pi, np.pi)
+    name : str, optional
+        Name of this transform, used to identify it in the dictionary
+        produced by ``self.instantiate``, by default None
+    prob : float, optional
+        Probability of applying this transform, by default 1.0
+    """
+
+    def __init__(
+        self,
+        shift: tuple = ("uniform", -np.pi, np.pi),
+        name: str = None,
+        prob: float = 1,
+    ):
+        super().__init__(name=name, prob=prob)
+        self.shift = shift
+
+    def _instantiate(self, state: RandomState):
+        return {"shift": util.sample_from_dist(self.shift, state)}
+
+    def _transform(self, signal, shift):
+        return signal.shift_phase(shift)

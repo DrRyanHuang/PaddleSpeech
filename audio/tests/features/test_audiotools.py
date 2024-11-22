@@ -97,7 +97,7 @@ def test_compose_basic():
 
 
 def test_transform():
-    transform_list = []
+    transform_list = ["Identity", "VolumeNorm", "RescaleAudio", "ShiftPhase"]
     for t in transform_list:
         _test_transform(t)
 
