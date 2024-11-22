@@ -88,7 +88,7 @@ def when(condition):
     return decorator
 
 
-def timer(prefix: str = "time"):
+def timer(prefix: str="time"):
     """✅Adds execution time to the output dictionary of the decorated
     function. The function decorated by this must output a dictionary.
     The key added will follow the form "[prefix]/[name_of_function]"
@@ -161,13 +161,12 @@ class Tracker:
     """
 
     def __init__(
-        self,
-        writer: LogWriter = None,
-        log_file: str = None,
-        rank: int = 0,
-        console_width: int = 100,
-        step: int = 0,
-    ):
+            self,
+            writer: LogWriter=None,
+            log_file: str=None,
+            rank: int=0,
+            console_width: int=100,
+            step: int=0, ):
         """
         Initializes the Tracker object.
 
@@ -199,14 +198,12 @@ class Tracker:
             BarColumn(),
             TimeElapsedColumn(),
             "/",
-            TimeRemainingColumn(),
-        )
+            TimeRemainingColumn(), )
         self.consoles = [Console(width=console_width)]
         self.live = Live(console=self.consoles[0], refresh_per_second=10)
         if log_file is not None:
             self.consoles.append(
-                Console(width=console_width, file=open(log_file, "a"))
-            )
+                Console(width=console_width, file=open(log_file, "a")))
 
     def print(self, msg):
         """
@@ -259,10 +256,7 @@ class Tracker:
                         group,
                         padding=(0, 5),
                         title="[b]Progress",
-                        border_style="blue",
-                    ),
-                )
-            )
+                        border_style="blue", ), ))
 
     def done(self, label: str, title: str):
         """
@@ -286,13 +280,12 @@ class Tracker:
             self.print(group)
 
     def track(
-        self,
-        label: str,
-        length: int,
-        completed: int = 0,
-        op: dist.ReduceOp = dist.ReduceOp.AVG,
-        ddp_active: bool = "LOCAL_RANK" in os.environ,
-    ):
+            self,
+            label: str,
+            length: int,
+            completed: int=0,
+            op: dist.ReduceOp=dist.ReduceOp.AVG,
+            ddp_active: bool="LOCAL_RANK" in os.environ, ):
         """
         A decorator for tracking the progress and metrics of a function.
 
@@ -310,10 +303,13 @@ class Tracker:
             Whether the DistributedDataParallel is active, by default "LOCAL_RANK" in os.environ.
         """
         self.tasks[label] = {
-            "pbar": self.pbar.add_task(
-                f"[white]Iteration ({label})", total=length, completed=completed
-            ),
-            "table": Table(),
+            "pbar":
+            self.pbar.add_task(
+                f"[white]Iteration ({label})",
+                total=length,
+                completed=completed),
+            "table":
+            Table(),
         }
         self.metrics[label] = {
             "value": defaultdict(),
@@ -356,7 +352,7 @@ class Tracker:
 
         return decorator
 
-    def log(self, label: str, value_type: str = "value", history: bool = True):
+    def log(self, label: str, value_type: str="value", history: bool=True):
         """
         A decorator for logging the metrics of a function.
 
@@ -385,8 +381,7 @@ class Tracker:
                         v = v() if isinstance(v, Mean) else v
                         if self.writer is not None:
                             self.writer.add_scalar(
-                                tag=f"{k}/{label}", value=v, step=self.step
-                            )
+                                tag=f"{k}/{label}", value=v, step=self.step)
                         if label in self.history:
                             self.history[label][k].append(v)
 
