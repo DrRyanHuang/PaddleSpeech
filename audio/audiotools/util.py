@@ -464,7 +464,7 @@ def collate(list_of_dicts: list, n_splits: int=None):
                     batch[k] = AudioSignal.batch(v, pad_signals=True)
                 else:
                     # Borrow the default collate fn from paddle.
-                    batch[k] = paddle.utils.data._utils.collate.default_collate(
+                    batch[k] = paddle.io.dataloader.collate.default_collate_fn(
                         v)
         batches.append(unflatten(batch))
 

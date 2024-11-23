@@ -2,7 +2,9 @@ import paddle
 from pathlib import Path
 
 import audiotools
+
 from audiotools.audio_signal import AudioSignal
+from audiotools.data import ConcatDataset
 from audiotools import util
 from audiotools import transforms as trf
 
@@ -146,7 +148,24 @@ def test_choose_basic():
         assert batch_output[nb] in targets
 
 
+def test_concat_dataset():
+    d1 = NumberDataset()
+    d2 = NumberDataset()
+    d3 = NumberDataset()
+
+    d = ConcatDataset([d1, d2, d3])
+    x = d.collate([d[i] for i in range(len(d))])["idx"].tolist()
+
+    t = []
+    for i in range(10):
+        t += [i, i, i]
+
+    assert x == t
+
+
+
 if __name__ == "__main__":
+    test_concat_dataset()
     test_transform()
     test_choose_basic()
     test_compose_basic()
